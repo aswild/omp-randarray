@@ -5,12 +5,16 @@
 #include <unistd.h>
 #include "timer.h"
 
-#if WITH_OPENMP
+#ifdef WITH_OPENMP
 #include <omp.h>
 #else
 // stubs for compiling without omp
 #define omp_get_thread_num() 0
 #define omp_set_num_threads(...)
+#endif
+
+#ifdef WITH_MD5
+#include <openssl/md5.h>
 #endif
 
 #define RD_STATE_LEN 128
@@ -39,8 +43,10 @@ void usage(void)
         "  -n SIZE      The size of the square array\n"
         "  -N LOGSIZE   The log2 of the size of the square array\n"
         "               (LOGSIZE=10 means 1024x1024)\n"
+        "  -s SEED      The initial seed for repeatable runs\n"
         "  -T THREADS   number of threads\n"
         "  -q           Run quietly and print just the number of seconds to stdout\n"
+        "  -m           Print the md5 of the generated data\n"
         ;
     puts(usage_text);
 }
@@ -50,19 +56,31 @@ int main(int argc, char *argv[])
     int nthreads = 1;
     size_t arr_size = 1024;
     bool quiet = false;
+    unsigned int start_seed = time(NULL);
+#ifdef WITH_MD5
+    bool use_md5 = false;
+#endif
 
     unsigned int *seeds;
     int32_t *arr;
     atimer_t timer;
 
     int opt;
-    while ((opt = getopt(argc, argv, "hn:N:qT:")) != -1)
+    while ((opt = getopt(argc, argv, "hmn:N:qs:T:")) != -1)
     {
         switch (opt)
         {
             case 'h':
                 usage();
                 exit(0);
+                break;
+
+            case 'm':
+#ifdef WITH_MD5
+                use_md5 = true;
+#else
+                fprintf(stderr, "no MD5 (openssl) support compiled in\n");
+#endif
                 break;
 
             case 'n':
@@ -80,8 +98,12 @@ int main(int argc, char *argv[])
                 quiet = true;
                 break;
 
+            case 's':
+                start_seed = strtoul(optarg, NULL, 0);
+                break;
+
             case 'T':
-#if WITH_OPENMP
+#ifdef WITH_OPENMP
                 nthreads = strtol(optarg, NULL, 0);
 #else
                 fprintf(stderr, "compiled without OMP, single-thread only\n");
@@ -104,7 +126,7 @@ int main(int argc, char *argv[])
 
     // init seeds
     MALLOC(seeds, nthreads * sizeof(*seeds));
-    srandom(time(NULL));
+    srandom(start_seed);
     for (int i = 0; i < nthreads; i++)
         seeds[i] = random();
 
@@ -152,6 +174,31 @@ int main(int argc, char *argv[])
         timer_print(&timer, stdout);
     }
     printf("\n");
+
+#ifdef WITH_MD5
+    if (use_md5)
+    {
+        unsigned char md[16];
+        if (!quiet)
+            printf("calculating MD5...\n");
+
+        timer_init(&timer);
+        timer_start(&timer);
+        MD5((const unsigned char *)arr, arr_size * sizeof(*arr), md);
+        timer_stop(&timer);
+
+        for (int i = 0; i < 16; i++)
+            printf("%02x", (unsigned int)md[i]);
+        printf("\n");
+
+        if (!quiet)
+        {
+            printf("md5 calculation took ");
+            timer_print(&timer, stdout);
+            printf("\n");
+        }
+    }
+#endif
 
     free(arr);
     return 0;

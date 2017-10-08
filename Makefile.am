@@ -10,3 +10,6 @@ randarray_SOURCES = randarray.c \
 					timer.c
 
 randarray_LDADD = -lm
+if WITH_OPENSSL
+randarray_LDADD += -lcrypto
+endif
