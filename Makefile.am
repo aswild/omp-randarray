@@ -5,7 +5,9 @@ else
 AM_CFLAGS += -Wno-unknown-pragmas
 endif
 
-bin_PROGRAMS = randarray
+AM_LDFLAGS = -Wl,--as-needed -Wl,-O2
+
+noinst_PROGRAMS = randarray
 randarray_SOURCES = randarray.c \
                     timer.c \
                     hsize.c
