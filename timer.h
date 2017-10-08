@@ -27,6 +27,8 @@ static inline int timer_stop(atimer_t *t)
     return clock_gettime(CLOCK_TO_USE, &t->end);
 }
 
+double timer_elapsed(atimer_t *t);
 void timer_print(atimer_t *t, FILE *fp);
+void timer_print_sec(atimer_t *t, FILE *fp);
 
 #endif

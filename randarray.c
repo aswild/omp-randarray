@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include "timer.h"
 
@@ -32,27 +33,30 @@
 void usage(void)
 {
     static const char usage_text[] =
-        "Usage: randarray [-n SIZE | -N LOGSIZE]\n"
+        "Usage: randarray OPTIONS\n"
         "\n"
         "Arguments:\n"
         "  -n SIZE      The size of the square array\n"
         "  -N LOGSIZE   The log2 of the size of the square array\n"
         "               (LOGSIZE=10 means 1024x1024)\n"
         "  -T THREADS   number of threads\n"
+        "  -q           Run quietly and print just the number of seconds to stdout\n"
         ;
     puts(usage_text);
 }
 
 int main(int argc, char *argv[])
 {
-    unsigned int *seeds;
-    int opt;
-    size_t arr_size = 1024;
-    int32_t *arr;
     int nthreads = 1;
+    size_t arr_size = 1024;
+    bool quiet = false;
+
+    unsigned int *seeds;
+    int32_t *arr;
     atimer_t timer;
 
-    while ((opt = getopt(argc, argv, "hn:N:T:")) != -1)
+    int opt;
+    while ((opt = getopt(argc, argv, "hn:N:qT:")) != -1)
     {
         switch (opt)
         {
@@ -68,8 +72,12 @@ int main(int argc, char *argv[])
             case 'N':
                 {
                     long pow = strtol(optarg, NULL, 0);
-                    arr_size = 1 << pow;
+                    arr_size = 1L << pow;
                 }
+                break;
+
+            case 'q':
+                quiet = true;
                 break;
 
             case 'T':
@@ -87,8 +95,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Using %d threads\n", nthreads);
-    printf("Using array size %zu (%zu bytes)\n", arr_size, arr_size * sizeof(*arr));
+    if (!quiet)
+    {
+        printf("Using %d threads\n", nthreads);
+        printf("Using array size %zu (%zu bytes)\n", arr_size, arr_size * sizeof(*arr));
+    }
     MALLOC(arr, arr_size * sizeof(*arr));
 
     // init seeds
@@ -131,8 +142,15 @@ int main(int argc, char *argv[])
     timer_stop(&timer);
     free(seeds);
 
-    printf("finished in ");
-    timer_print(&timer, stdout);
+    if (quiet)
+    {
+        timer_print_sec(&timer, stdout);
+    }
+    else
+    {
+        printf("finished in ");
+        timer_print(&timer, stdout);
+    }
     printf("\n");
 
     free(arr);
