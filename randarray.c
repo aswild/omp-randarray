@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <math.h>
 #include "timer.h"
 
 #ifdef WITH_OPENMP
@@ -34,15 +35,16 @@
         exit(1); \
     }} while(0)
 
-void usage(void)
+extern double get_hsize(const char *str);
+
+static void usage(void)
 {
     static const char usage_text[] =
         "Usage: randarray OPTIONS\n"
         "\n"
         "Arguments:\n"
-        "  -n SIZE      The size of the square array\n"
-        "  -N LOGSIZE   The log2 of the size of the square array\n"
-        "               (LOGSIZE=10 means 1024x1024)\n"
+        "  -n SIZE      The size of the array in bytes. Should be a multiple of 4\n"
+        "               (suffixes k,m,g,K,M,G for SI and Binary units can be used)\n"
         "  -s SEED      The initial seed for repeatable runs\n"
         "  -T THREADS   number of threads\n"
         "  -q           Run quietly and print just the number of seconds to stdout\n"
@@ -65,8 +67,9 @@ int main(int argc, char *argv[])
     int32_t *arr;
     atimer_t timer;
 
+    // parse arguments
     int opt;
-    while ((opt = getopt(argc, argv, "hmn:N:qs:T:")) != -1)
+    while ((opt = getopt(argc, argv, "hmn:qs:T:")) != -1)
     {
         switch (opt)
         {
@@ -84,13 +87,11 @@ int main(int argc, char *argv[])
                 break;
 
             case 'n':
-                arr_size = strtol(optarg, NULL, 0);
-                break;
-
-            case 'N':
                 {
-                    long pow = strtol(optarg, NULL, 0);
-                    arr_size = 1L << pow;
+                    double size_bytes = get_hsize(optarg);
+                    if (size_bytes < 0)
+                        exit(1);
+                    arr_size = lround(size_bytes / (double)(sizeof(*arr)));
                 }
                 break;
 

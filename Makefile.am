@@ -7,7 +7,8 @@ endif
 
 bin_PROGRAMS = randarray
 randarray_SOURCES = randarray.c \
-					timer.c
+                    timer.c \
+                    hsize.c
 
 randarray_LDADD = -lm
 if WITH_OPENSSL
